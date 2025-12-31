@@ -11,6 +11,7 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -18,6 +19,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -34,10 +36,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    final fullName = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (email.isEmpty || password.isEmpty) {
-      _showMessage('Email and password are required.');
+    if (fullName.isEmpty || email.isEmpty || password.isEmpty) {
+      _showMessage('Full name, email and password are required.');
       return;
     }
 
@@ -45,10 +48,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      await credential.user?.updateDisplayName(fullName);
+      await credential.user?.reload();
+      _nameController.clear();
       _emailController.clear();
       _passwordController.clear();
       if (!mounted) {
@@ -121,7 +127,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               const SizedBox(height: 20),
               TextField(
+                controller: _nameController,
                 textCapitalization: TextCapitalization.words,
+                textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
                   labelText: 'Full name',
                   prefixIcon: Padding(

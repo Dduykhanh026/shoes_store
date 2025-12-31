@@ -15,7 +15,9 @@ class HomeScreen extends StatelessWidget {
     if (!firebaseReady) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('Firebase is not configured.')));
+        ..showSnackBar(
+          const SnackBar(content: Text('Firebase is not configured.')),
+        );
       return;
     }
     try {
@@ -35,79 +37,200 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = firebaseReady ? FirebaseAuth.instance.currentUser : null;
+    String? firstNonEmpty(Iterable<String?> items) {
+      for (final item in items) {
+        final value = (item ?? '').trim();
+        if (value.isNotEmpty) return value;
+      }
+      return null;
+    }
+
+    final greetingName = firstNonEmpty([
+      user?.displayName,
+      ...((user?.providerData ?? []).map((info) => info.displayName)),
+      user?.email?.split('@').first,
+    ]);
+
+    final sections = <Map<String, dynamic>>[
+      {
+        'title': 'Lifestyle',
+        'products': [
+          {
+            'name': 'Nike Air Max 90',
+            'price': '3,669,000 VND',
+            'image': 'assets/images/Nike Air Max 90 Side.avif',
+          },
+          {
+            'name': 'Nike Ava Rover',
+            'price': '3,829,000 VND',
+            'image': 'assets/images/Nike Ava Rover Side.avif',
+          },
+          {
+            'name': 'Nike SB Force 58',
+            'price': '4,699,000 VND',
+            'image': 'assets/images/Nike SB Force 58 Side.avif',
+          },
+        ],
+      },
+      {
+        'title': 'Jordan',
+        'products': [
+          {
+            'name': "Air Jordan 40 PF 'Blue Suede'",
+            'price': '3,999,000 VND',
+            'image': "assets/images/Air Jordan 40 PF 'Blue Suede' Side.avif",
+          },
+          {
+            'name': 'Air Jordan MVP 92',
+            'price': '5,699,000 VND',
+            'image': 'assets/images/Air Jordan MVP 92 Side.avif',
+          },
+          {
+            'name': 'Jordan CMFT Era',
+            'price': '4,199,000 VND',
+            'image': 'assets/images/Jordan CMFT Era Side.avif',
+          },
+        ],
+      },
+      {
+        'title': 'Running',
+        'products': [
+          {
+            'name': "Nike Vaporfly 4 'Eliud Kipchoge'",
+            'price': '3,299,000 VND',
+            'image': "assets/images/Nike Vaporfly 4 'Eliud Kipchoge' Side.avif",
+          },
+          {
+            'name': 'Nike Zoom Rival Fly 4',
+            'price': '4,199,000 VND',
+            'image': 'assets/images/Nike Zoom Rival Fly 4 Side.avif',
+          },
+          {
+            'name': 'Nike Maxfly 2',
+            'price': '4,899,000 VND',
+            'image': 'assets/images/Nike Maxfly 2 Side.avif',
+          },
+        ],
+      },
+    ];
+
+    Widget buildSection(Map<String, dynamic> data) {
+      final products = data['products'] as List<Map<String, String>>;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data['title'] as String,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final product in products)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: SizedBox(
+                      width: 260,
+                      child: _ProductCard(product: product),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      );
+    }
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Home'),
+        title: Text(
+          'Hi${greetingName != null ? ', $greetingName' : ''}!',
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF1E1A14),
+          ),
+        ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: Colors.grey[300]),
+        ),
         actions: [
           IconButton(
             onPressed: () => _signOut(context),
-            icon: const Icon(Icons.logout),
+            icon: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Image.asset(
+                'assets/icons/sign-out-alt.png',
+                width: 22,
+                height: 22,
+                fit: BoxFit.contain,
+              ),
+            ),
             color: Colors.black,
             tooltip: 'Sign out',
           ),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Welcome${user?.email != null ? ', ${user!.email}' : ''}!',
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Browse and shop your favorite shoes.',
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE6DDD3)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.shopping_bag_outlined, size: 52, color: accent),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Home Screen',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Content goes here.',
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: sections.map(buildSection).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  const _ProductCard({required this.product});
+
+  final Map<String, String> product;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(color: Colors.white),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            child: AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Image.asset(product['image'] ?? '', fit: BoxFit.cover),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product['name'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-              ),
-            ],
+                Text(
+                  product['price'] ?? '',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
