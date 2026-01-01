@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:shoes_store/screens/register_screen.dart';
 import 'package:shoes_store/screens/home_screen.dart';
 
@@ -20,6 +22,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+  Future<void>? _googleInit;
   bool _obscurePassword = true;
   bool _isSubmitting = false;
 
@@ -65,14 +69,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) {
         return;
       }
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            accent: widget.accent,
-            firebaseReady: widget.firebaseReady,
-          ),
-        ),
-      );
+      final isAdmin = await _hasAdminClaim();
+      _goHome(isAdmin);
     } on FirebaseAuthException catch (e) {
       if (!mounted) {
         return;
@@ -109,6 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await FirebaseAuth.instance.signOut();
+      await _googleSignIn.signOut();
+      await FacebookAuth.instance.logOut();
       _emailController.clear();
       _passwordController.clear();
       if (!mounted) {
@@ -129,14 +129,146 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _signInWithFacebook() async {
+    if (_isSubmitting) {
+      return;
+    }
+    if (!widget.firebaseReady) {
+      _showMessage('Firebase is not configured.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      // Request only the basic public profile to avoid needing the email scope.
+      final result = await FacebookAuth.instance.login(
+        permissions: ['public_profile'],
+      );
+      if (result.status != LoginStatus.success || result.accessToken == null) {
+        return;
+      }
+
+      final credential = FacebookAuthProvider.credential(
+        result.accessToken!.tokenString,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      _emailController.clear();
+      _passwordController.clear();
+      if (!mounted) {
+        return;
+      }
+      final isAdmin = await _hasAdminClaim();
+      _goHome(isAdmin);
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(e.message ?? 'Facebook sign-in failed.');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Facebook sign-in failed.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _signInWithGoogle() async {
+    if (_isSubmitting) {
+      return;
+    }
+    if (!widget.firebaseReady) {
+      _showMessage('Firebase is not configured.');
+      return;
+    }
+
+    _googleInit ??= _googleSignIn.initialize();
+    await _googleInit;
+
+    setState(() => _isSubmitting = true);
+    try {
+      final googleUser = await _googleSignIn.authenticate();
+      final googleAuth = googleUser.authentication;
+      if (googleAuth.idToken == null) {
+        _showMessage('Google sign-in failed. Missing token.');
+        return;
+      }
+      final credential = GoogleAuthProvider.credential(
+        idToken: googleAuth.idToken,
+      );
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      _emailController.clear();
+      _passwordController.clear();
+      if (!mounted) {
+        return;
+      }
+      final isAdmin = await _hasAdminClaim();
+      _goHome(isAdmin);
+    } on UnsupportedError {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Google sign-in is not supported on this platform.');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage(e.message ?? 'Google sign-in failed.');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      _showMessage('Google sign-in failed.');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<bool> _hasAdminClaim() async {
+    if (!widget.firebaseReady) {
+      return false;
+    }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return false;
+    }
+    try {
+      final token = await user.getIdTokenResult(true);
+      final claims = token.claims ?? {};
+      final claim = claims['admin'] ?? claims['isAdmin'];
+      return claim == true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void _goHome(bool isAdmin) {
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(
+          accent: widget.accent,
+          firebaseReady: widget.firebaseReady,
+          isAdmin: isAdmin,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const Color background = Colors.white;
-    const Color titleColor = Color(0xFF1E1A14);
-    const Color bodyColor = Color(0xFF7C7268);
     final accent = widget.accent;
-    final currentUser =
-        widget.firebaseReady ? FirebaseAuth.instance.currentUser : null;
+    final currentUser = widget.firebaseReady
+        ? FirebaseAuth.instance.currentUser
+        : null;
 
     return Scaffold(
       backgroundColor: background,
@@ -375,12 +507,20 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 18),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  _SocialIconButton(assetPath: 'assets/icons/facebook.png'),
-                  SizedBox(width: 16),
-                  _SocialIconButton(assetPath: 'assets/icons/google.png'),
-                  SizedBox(width: 16),
-                  _SocialIconButton(assetPath: 'assets/icons/twitter.png'),
+                children: [
+                  _SocialIconButton(
+                    assetPath: 'assets/icons/facebook.png',
+                    onPressed: _isSubmitting ? null : _signInWithFacebook,
+                  ),
+                  const SizedBox(width: 16),
+                  _SocialIconButton(
+                    assetPath: 'assets/icons/google.png',
+                    onPressed: _isSubmitting ? null : _signInWithGoogle,
+                  ),
+                  const SizedBox(width: 16),
+                  const _SocialIconButton(
+                    assetPath: 'assets/icons/twitter.png',
+                  ),
                 ],
               ),
             ],
@@ -392,26 +532,35 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class _SocialIconButton extends StatelessWidget {
-  const _SocialIconButton({required this.assetPath});
+  const _SocialIconButton({required this.assetPath, this.onPressed});
 
   final String assetPath;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 56,
-      height: 56,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.8),
+    final isEnabled = onPressed != null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE6DDD3)),
-      ),
-      child: Center(
-        child: Image.asset(
-          assetPath,
-          width: 26,
-          height: 26,
-          fit: BoxFit.contain,
+        onTap: isEnabled ? onPressed : null,
+        child: Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: isEnabled ? 0.8 : 0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE6DDD3)),
+          ),
+          child: Center(
+            child: Image.asset(
+              assetPath,
+              width: 26,
+              height: 26,
+              fit: BoxFit.contain,
+            ),
+          ),
         ),
       ),
     );

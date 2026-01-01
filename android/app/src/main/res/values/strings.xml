@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">shoes_store</string>
+    <!-- TODO: Replace with your Facebook app id and client token -->
+    <string name="facebook_app_id">1616786489481405</string>
+    <string name="facebook_client_token">e9fa9d36b75581202eb43f0bef2eeaea</string>
+    <string name="fb_login_protocol_scheme">fb1616786489481405</string>
+</resources>

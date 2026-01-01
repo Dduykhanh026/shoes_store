@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "846195030372-o3abvjgvmd8mlvnbpvqfmib7imh23kk2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shoes_store",
+            "certificate_hash": "64be934e94b78d427745195cc1d1b92f5082be25"
+          }
+        },
+        {
           "client_id": "846195030372-9qqb8fksk0oh1p0g6pgqks70u5hg98vj.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +37,13 @@
             {
               "client_id": "846195030372-9qqb8fksk0oh1p0g6pgqks70u5hg98vj.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "846195030372-ea8fduml6h1c5ch4re6ae29unuru2oj4.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.shoesStore"
+              }
             }
           ]
         }
